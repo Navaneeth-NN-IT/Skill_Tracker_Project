@@ -3,6 +3,8 @@ package com.example.skill_tracker_project.service.impl;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +24,7 @@ import com.example.skill_tracker_project.repository.SkillRepository;
 import com.example.skill_tracker_project.repository.UserRepository;
 import com.example.skill_tracker_project.service.EmployeeService;
 
-import lombok.AllArgsConstructor;
-
 @Service
-@AllArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
@@ -34,16 +33,23 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final SkillRepository skillRepository;
     private final EmployeeSkillRepository employeeSkillRepository;
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<EmployeeDto> getAllEmployees() {
-        return employeeRepository.findAll().stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, DepartmentRepository departmentRepository, UserRepository userRepository, SkillRepository skillRepository, EmployeeSkillRepository employeeSkillRepository) {
+        this.employeeRepository = employeeRepository;
+        this.departmentRepository = departmentRepository;
+        this.userRepository = userRepository;
+        this.skillRepository = skillRepository;
+        this.employeeSkillRepository = employeeSkillRepository;
     }
 
     @Override
-    @Transactional(readOnly = true) // <-- THIS ANNOTATION WAS THE MISSING FIX
+    @Transactional(readOnly = true)
+    public Page<EmployeeDto> getAllEmployees(Pageable pageable) {
+        Page<Employee> employeePage = employeeRepository.findAll(pageable);
+        return employeePage.map(this::mapToDto); // Use the built-in map function of the Page object
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public EmployeeDto getEmployeeById(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
@@ -91,7 +97,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         EmployeeSkill employeeSkill = new EmployeeSkill();
         employeeSkill.setEmployee(employee);
         employeeSkill.setSkill(skill);
-        employee.getEmployeeSkills().add(employeeSkill); // Add to the collection managed by JPA
+        employee.getEmployeeSkills().add(employeeSkill);
         
         employeeRepository.save(employee);
 
